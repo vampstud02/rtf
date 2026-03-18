@@ -91,7 +91,12 @@ def monitor_process(rtf_path: str, clsid_str: str, timeout: int, word_path: str 
     logger.info(f"Launching Word: {word_path} \"{os.path.abspath(rtf_path)}\"")
     try:
         # We start Word and keep the Popen object
-        process = subprocess.Popen([word_path, os.path.abspath(rtf_path)])
+        # Added switches to suppress dialogs:
+        # /q: Starts Word without displaying the splash screen.
+        # /n: Starts a new instance of Word with no document open (though we specify one).
+        # /m: Starts Word without running any AutoExec macros.
+        # /a: Starts Word and prevents add-ins and global templates from being loaded automatically.
+        process = subprocess.Popen([word_path, '/q', '/n', '/m', '/a', os.path.abspath(rtf_path)])
     except Exception as e:
         return {"status": "Error", "message": f"Failed to start Word: {e}"}
 
