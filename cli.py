@@ -8,22 +8,32 @@ from core.monitor import monitor_process
 from core.reporter import generate_report
 from core.registry_scanner import get_all_clsids
 
+from datetime import datetime
+
 def setup_logger():
-    """Configure basic logging."""
+    """Configure basic logging to both console and a timestamped file."""
     logger = logging.getLogger('ole_tester')
     logger.setLevel(logging.INFO)
     
-    # Create console handler
+    # Create formatter
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    
+    # 1. Console handler
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.INFO)
-    
-    # Create formatter and add it to the handlers
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     ch.setFormatter(formatter)
-    
-    # Add the handlers to the logger
     logger.addHandler(ch)
-    return logger
+    
+    # 2. File handler with timestamped filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_filename = f"ole_tester_{timestamp}.log"
+    fh = logging.FileHandler(log_filename, encoding='utf-8')
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+    
+    return logger, log_filename
+
 
 def parse_args():
     """Parse command line arguments."""
@@ -109,12 +119,28 @@ def run_test(clsid: str, args, logger):
 
 
 def main():
-    logger = setup_logger()
+    logger, log_filename = setup_logger()
     args = parse_args()
     
+    logger.info("==============================================")
     logger.info("Starting OLE Object Tester...")
+    logger.info(f"Log file: {log_filename}")
     logger.info(f"Timeout: {args.timeout}s")
     logger.info(f"Output Format: {args.format}")
+    logger.info("==============================================")
+    
+    # 1. Check for Word Executable early to prevent endless loops
+    from core.monitor import get_word_path
+    word_path_to_use = args.word_path
+    if not word_path_to_use:
+        word_path_to_use = get_word_path()
+        if not word_path_to_use:
+            logger.error("Could not find MS Word executable (WINWORD.EXE) on this system.")
+            logger.error("Please install Microsoft Word or provide the path using --word-path.")
+            sys.exit(1)
+            
+    # Set the resolved path back to args so monitor_process doesn't have to find it again
+    args.word_path = word_path_to_use
     
     if args.clsid:
         logger.info(f"Testing single CLSID: {args.clsid}")
